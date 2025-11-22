@@ -1,0 +1,20 @@
+✅ A floating progress indicator
+✅ A “Processing N of M” overlay 
+✅ A “Summary bar” at the top (High/Medium/Low counts) 
+✅ Or convert this into a Chrome extension automatically
+Just say “add summary bar” or “extension mode”.
+
+
+1. Core
+    ✅ Display badges
+    ✅ Background highlight
+    ✅ simple fallback mechanisms for best outputs
+    auto script running after paginations
+        almost there, need testing
+    Max 5 sec operation
+        web workers
+        animations
+    Performance updates
+
+2. Enhancements
+    H-1B tracker?
