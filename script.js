@@ -8,7 +8,7 @@
   }
 
   /* -------------------------------------------
-      NEW: Detect "Top Applicant" from RHS panel
+      Detect "Top Applicant" from RHS panel
      ------------------------------------------- */
   function getTopApplicantFromDetail() {
     const panel = document.querySelector("div.jobs-details__main-content");
@@ -123,24 +123,17 @@
     card.dataset[processedFlag] = "1";
     const cardText = card.innerText || "";
 
-    // LEFT-SIDE detection (original logic)
     let isTop = /you(?:'|’|`|â€™)?d be a top applicant[\s,\.]/i.test(cardText);
 
     card.scrollIntoView({ behavior: "smooth", block: "center" });
     card.click();
     await sleep(DELAY_MS);
 
-    /* --------------------------------------------------
-        NEW: Detect Top Applicant from RHS panel ALSO
-       -------------------------------------------------- */
     const rhsTop = getTopApplicantFromDetail();
     if (rhsTop) isTop = true;
 
     let level = getPremiumMatchLevelFromDetail();
 
-    /* ----------------------------------------------------------------
-       NEW: If "Job match summary not available" → force LOW, no TOP
-       ---------------------------------------------------------------- */
     const rhsPanel = document.querySelector("div.jobs-details__main-content");
     const rhsText = rhsPanel ? rhsPanel.innerText : "";
     const noSummaryRegex = /job match summary not available/i;
@@ -171,7 +164,6 @@
     const entry = { role, match: level, top: isTop };
     window.jobMatchCache[jobId] = entry;
 
-    console.log("Processed:", role, level || "unknown", isTop ? "(TOP)" : "");
     applyBadgeForCard(card, entry);
   }
 
@@ -191,9 +183,7 @@
     }
 
     queue.push(card);
-    if (!processingQueue) {
-      processQueue();
-    }
+    if (!processingQueue) processQueue();
   }
 
   async function processQueue() {
@@ -210,7 +200,10 @@
 
     processingQueue = false;
 
-    console.log("Current results in window.jobMatchCache");
+    /* -------------------------------------------
+         DISPLAY FINAL RESULTS CLEARLY
+       ------------------------------------------- */
+    console.log("===== FINAL JOB MATCH TABLE =====");
     console.table(
       Object.entries(window.jobMatchCache).map(([id, v]) => ({
         id,
@@ -220,6 +213,16 @@
       }))
     );
 
+    /* -------------------------------------------
+         MEMORY CLEANUP
+       ------------------------------------------- */
+    delete window.jobMatchCache;
+    delete window.jobMatchRetries;
+    console.log("Memory cleanup done — caches removed.");
+
+    /* -------------------------------------------
+         RETURN TO TOP
+       ------------------------------------------- */
     try {
       window.scrollTo({ top: 0, behavior: "smooth" });
 
@@ -228,9 +231,7 @@
         document.querySelector(".jobs-search-results__list") ||
         document.querySelector(".scaffold-layout__list");
 
-      if (listRoot) {
-        listRoot.scrollTop = 0;
-      }
+      if (listRoot) listRoot.scrollTop = 0;
 
       await sleep(800);
 
@@ -239,8 +240,6 @@
         firstCard.scrollIntoView({ behavior: "smooth", block: "center" });
         firstCard.click();
         console.log("Returned to first job:", firstCard.getAttribute("data-job-id"));
-      } else {
-        console.warn("No first job card found when trying to return to top.");
       }
     } catch (e) {
       console.warn("Unable to scroll back to top or click first card:", e);
@@ -276,13 +275,10 @@
     });
 
     observer.observe(listRoot, { childList: true, subtree: true });
-    window.jobMatchObserver = observer;
     console.log("Observer attached for new job cards.");
   } else {
     console.warn("Job list root not found; dynamic observing disabled.");
   }
 
-  console.log(
-    "Initial cards enqueued. Scroll the left list to load more; they’ll be processed automatically and you’ll be returned to the top when the queue drains."
-  );
+  console.log("Initial cards enqueued. Scroll to load more jobs.");
 })();
