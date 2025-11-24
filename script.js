@@ -203,60 +203,50 @@
     /* -----------------------------
        FAB STATE HELPERS (SVG ICONS)
        ----------------------------- */
-    function setFabToIdle() {
-      fabState = "idle";
-      if (!fabBtn) return;
-      fabBtn.disabled = false;
-      fabBtn.style.background = "#16a34a";
-      fabBtn.style.opacity = "1";
-      fabBtn.style.cursor = "pointer";
-      fabBtn.innerHTML = `
-        <span style="display:inline-flex;align-items:center;gap:6px;">
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-            <rect x="3" y="3"  width="10" height="2" rx="1"></rect>
-            <rect x="3" y="7"  width="10" height="2" rx="1"></rect>
-            <rect x="3" y="11" width="7"  height="2" rx="1"></rect>
-          </svg>
-          <span>Process jobs</span>
-        </span>
-      `;
-    }
+function setFabToIdle() {
+  fabState = "idle";
+  if (!fabBtn) return;
+  fabBtn.disabled = false;
+  fabBtn.style.background = "#16a34a"; // green
+  fabBtn.style.opacity = "1";
+  fabBtn.style.cursor = "pointer";
+  fabBtn.innerHTML = `
+    <span style="display:inline-flex;align-items:center;gap:6px;">
+      <span style="font-size:15px;">📄</span>
+      <span>Process jobs</span>
+    </span>
+  `;
+}
 
-    function setFabToProcessing() {
-      fabState = "processing";
-      if (!fabBtn) return;
-      fabBtn.disabled = true;
-      fabBtn.style.background = "#bbf7d0"; // light green
-      fabBtn.style.opacity = "0.8";
-      fabBtn.style.cursor = "not-allowed";
-      fabBtn.innerHTML = `
-        <span style="display:inline-flex;align-items:center;gap:6px;">
-          <svg class="job-match-spinner" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-            <circle cx="8" cy="8" r="6" fill="none" stroke="rgba(22,163,74,0.3)" stroke-width="2"></circle>
-            <path d="M8 2a6 6 0 0 1 6 6" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"></path>
-          </svg>
-          <span>Processing jobs…</span>
-        </span>
-      `;
-    }
+function setFabToProcessing() {
+  fabState = "processing";
+  if (!fabBtn) return;
+  fabBtn.disabled = true;
+  fabBtn.style.background = "#f59e0b"; // orange
+  fabBtn.style.opacity = "0.9";
+  fabBtn.style.cursor = "not-allowed";
+  fabBtn.innerHTML = `
+    <span style="display:inline-flex;align-items:center;gap:6px;">
+      <span style="font-size:15px;">⏳</span>
+      <span>Processing jobs…</span>
+    </span>
+  `;
+}
 
-    function setFabToDone() {
-      fabState = "done";
-      if (!fabBtn) return;
-      fabBtn.disabled = true;
-      fabBtn.style.background = "#4ade80"; // medium green
-      fabBtn.style.opacity = "1";
-      fabBtn.style.cursor = "default";
-      fabBtn.innerHTML = `
-        <span style="display:inline-flex;align-items:center;gap:6px;">
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M6.5 11 4 8.5l1.1-1.1 1.4 1.4 4-4 1.1 1.1-5.1 5.1z"></path>
-          </svg>
-          <span>Processed jobs</span>
-        </span>
-      `;
-    }
-
+function setFabToDone() {
+  fabState = "done";
+  if (!fabBtn) return;
+  fabBtn.disabled = true;
+  fabBtn.style.background = "#d4af37"; // gold
+  fabBtn.style.opacity = "1";
+  fabBtn.style.cursor = "default";
+  fabBtn.innerHTML = `
+    <span style="display:inline-flex;align-items:center;gap:6px;">
+      <span style="font-size:15px;">✅</span>
+      <span>Processed jobs</span>
+    </span>
+  `;
+}
     function markNewJobsArrived() {
       // If we were "done" and new jobs appear, go back to idle so user can process again
       if (fabState === "done") {
