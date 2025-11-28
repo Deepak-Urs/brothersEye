@@ -18,11 +18,11 @@
     restartLock = true;
 
     console.log("🔄 URL changed (filters/pagination) → restarting job match script...");
-    setTimeout(() => (restartLock = false), 240); // 400 → 240
+    setTimeout(() => (restartLock = false), 280);   // 400 → 280
 
     restartCooldown = true;
     startScript();
-    setTimeout(() => (restartCooldown = false), 1200); // 2000 → 1200
+    setTimeout(() => (restartCooldown = false), 1400);  // 2000 → 1400
   }
 
   setInterval(() => {
@@ -31,7 +31,7 @@
       lastCleanUrl = now;
       safeRestart();
     }
-  }, 180); // 300 → 180
+  }, 210); // 300 → 210
 
   /* ============================================================
         MAIN SCRIPT WRAPPER (RESTARTABLE)
@@ -66,7 +66,7 @@
         CORE LOGIC
      ============================================================ */
   function initScriptCore() {
-    const DELAY_MS = 720; // 1200 → 720
+    const DELAY_MS = 840; // 1200 → 840
     const processedFlag = "jobMatchDone";
     const MAX_RETRIES = 3;
 
@@ -98,14 +98,80 @@
 
       const style = document.createElement("style");
       style.id = "job-match-badge-style";
-      style.textContent = `...`;
+      style.textContent = `
+        .job-match-badge {
+          margin-left: 6px;
+          padding: 2px 6px;
+          border-radius: 9999px;
+          font-size: 11px;
+          font-weight: 700;
+          color: white !important;
+          display: inline-flex;
+          align-items: center;
+        }
+        .badge-high   { background-color: #16a34a !important; }
+        .badge-medium { background-color: #9ca3af !important; }
+        .badge-low    { background-color: #ef4444 !important; }
+        .badge-top    { background-color: #d4a017 !important; }
+
+        .card-high   { background-color: rgba(22,163,74,0.08) !important; }
+        .card-medium { background-color: rgba(156,163,175,0.08) !important; }
+        .card-low    { background-color: rgba(239,68,68,0.08) !important; }
+        .card-top    { background-color: rgba(212,160,23,0.10) !important; }
+
+        .badge-applied {
+          background-color: white !important;
+          color: #2563eb !important;
+          border: 1px solid #2563eb !important;
+        }
+        .card-applied {
+          background-color: rgba(37,99,235,0.08) !important;
+        }
+      `;
       document.head.appendChild(style);
     }
 
     function applyBadgeForCard(card, entry) {
       ensureStyles();
       if (!entry) return;
-      /* ... unchanged ... */
+
+      const liHost = card.closest("li.scaffold-layout__list-item") || card;
+      const subtitle = card.querySelector(".artdeco-entity-lockup__subtitle");
+      const badgeHost = subtitle || card;
+
+      let badge = badgeHost.querySelector(".job-match-badge");
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "job-match-badge";
+        badgeHost.appendChild(badge);
+      }
+
+      badge.classList.remove(
+        "badge-high", "badge-medium", "badge-low",
+        "badge-top", "badge-applied"
+      );
+      liHost.classList.remove(
+        "card-high", "card-medium", "card-low",
+        "card-top", "card-applied"
+      );
+
+      if (entry.applied) {
+        badge.textContent = "APPLIED";
+        badge.classList.add("badge-applied");
+        liHost.classList.add("card-applied");
+        return;
+      }
+
+      if (entry.top) {
+        badge.textContent = "TOP APPLICANT";
+        badge.classList.add("badge-top");
+        liHost.classList.add("card-top");
+      } else {
+        const m = entry.match || "low";
+        badge.textContent = m.toUpperCase() + " MATCH";
+        badge.classList.add(`badge-${m}`);
+        liHost.classList.add(`card-${m}`);
+      }
     }
 
     window.jobMatchCache = window.jobMatchCache || {};
@@ -162,11 +228,12 @@
       card.scrollIntoView({ behavior: "smooth", block: "center" });
       card.click();
 
-      await sleep(DELAY_MS); // 720ms
+      await sleep(DELAY_MS);
 
       if (getTopApplicantFromDetail()) isTop = true;
 
       let level = getPremiumMatchLevelFromDetail();
+
       const rhsText =
         document.querySelector("div.jobs-details__main-content")?.innerText || "";
 
@@ -252,7 +319,7 @@
           window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
         }
 
-        await sleep(900); // 1500 → 900
+        await sleep(1050); // 1500 → 1050
 
         document
           .querySelectorAll("div.job-card-container[data-job-id]")
@@ -265,8 +332,9 @@
         }
       }
 
+
       /* ============================================================
-            RETURN TO TOP (UNCHANGED)
+            RETURN TO TOP
       ============================================================ */
       try {
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -278,7 +346,7 @@
 
         if (listRoot) listRoot.scrollTop = 0;
 
-        await sleep(480); // 800 → 480
+        await sleep(560); // 800 → 560
 
         const firstCard = document.querySelector("div.job-card-container[data-job-id]");
         if (firstCard) {
@@ -291,8 +359,59 @@
       processingQueue = false;
     }
 
-    /* FAB BUTTON + OBSERVER (unchanged) */
-    function ensureFab() { /* ... unchanged ... */ }
+    function ensureFab() {
+      if (document.getElementById("job-match-fab")) {
+        fabBtn = document.getElementById("job-match-fab");
+        setFabToIdle();
+        return;
+      }
+
+      const listRoot =
+        document.querySelector(".jobs-search-results-list") ||
+        document.querySelector(".jobs-search-results__list") ||
+        document.querySelector(".scaffold-layout__list");
+
+      let anchor =
+        listRoot?.closest(".scaffold-layout__list") ||
+        listRoot?.parentElement ||
+        document.body;
+
+      if (anchor !== document.body && getComputedStyle(anchor).position === "static") {
+        anchor.style.position = "relative";
+      }
+
+      fabBtn = document.createElement("button");
+      fabBtn.id = "job-match-fab";
+
+      Object.assign(fabBtn.style, {
+        position: "fixed",
+        zIndex: "9999",
+        padding: "10px 20px",
+        borderRadius: "9999px",
+        background: "#16a34a",
+        color: "#fff",
+        border: "none",
+        fontSize: "13px",
+        fontWeight: "600"
+      });
+
+      function positionButton() {
+        const rect = anchor.getBoundingClientRect();
+        fabBtn.style.top = Math.max(rect.top + 12, 60) + "px";
+        fabBtn.style.left = rect.left + 12 + "px";
+      }
+
+      positionButton();
+      window.addEventListener("resize", positionButton);
+      window.addEventListener("scroll", positionButton);
+
+      fabBtn.addEventListener("click", () => {
+        if (!processingQueue && fabState === "idle") processQueue();
+      });
+
+      document.body.appendChild(fabBtn);
+      setFabToIdle();
+    }
 
     ensureStyles();
 
@@ -333,8 +452,6 @@
 })();
 
 
-
-
-//reduce all wait times by 50% --> DONE
+//reduce all wait times by 30% -- DONE
 // Scrolled list, waiting for new jobs…, here the fix might lie, its stoppong
-// if we are preocessing halfway, dont go back to top of page again
+// if we are preocessing halfway, dont go back to top of page
