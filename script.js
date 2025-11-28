@@ -111,7 +111,10 @@
 
     function getPremiumMatchLevelFromDetail() {
       const nodes = document.querySelectorAll("section, div");
-      const txt = Array.from(nodes).map(n => n.innerText || "").join("\n").toLowerCase();
+      const txt = Array.from(nodes)
+        .map(n => n.innerText || "")
+        .join("\n")
+        .toLowerCase();
 
       const m1 = txt.match(/job match[:\s]+(high|medium|low)/i);
       if (m1) return m1[1].toLowerCase();
@@ -125,7 +128,7 @@
     }
 
     /* ============================================================
-          STYLE (Spinner + Overlay + Badges)
+          STYLES
      ============================================================ */
     function ensureStyles() {
       if (document.getElementById("job-match-badge-style")) return;
@@ -183,7 +186,6 @@
           100% { transform: rotate(360deg); }
         }
 
-        /* OVERLAY */
         #jobmatch-overlay {
           position: fixed;
           top: 0;
@@ -197,22 +199,18 @@
           align-items: center;
           justify-content: center;
           flex-direction: column;
-          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
-
         #jobmatch-overlay-spinner {
           font-size: 42px;
           margin-bottom: 14px;
           animation: spin 1.2s linear infinite;
         }
-
         #jobmatch-overlay-text {
           font-size: 15px;
           font-weight: 600;
           color: #444;
           margin-bottom: 6px;
         }
-
         #jobmatch-overlay-quote {
           font-size: 13px;
           color: #666;
@@ -257,40 +255,37 @@
 
     function startOverlay() {
       const overlay = document.getElementById("jobmatch-overlay");
-      if (!overlay) return;
-
       overlay.style.display = "flex";
+
       quoteIndexPool = [...Array(QUOTES.length).keys()];
 
-      function cycleQuote() {
-        if (quoteIndexPool.length === 0) return;
+      function cycle() {
+        if (!quoteIndexPool.length) return;
         const idx = Math.floor(Math.random() * quoteIndexPool.length);
         const qIndex = quoteIndexPool.splice(idx, 1)[0];
-        const qEl = document.getElementById("jobmatch-overlay-quote");
-        if (qEl) qEl.innerText = QUOTES[qIndex];
+        document.getElementById("jobmatch-overlay-quote").innerText =
+          QUOTES[qIndex];
       }
 
-      cycleQuote();
+      cycle();
       quoteTimer = setInterval(() => {
-        if (quoteIndexPool.length === 0) {
+        if (!quoteIndexPool.length) {
           clearInterval(quoteTimer);
           quoteTimer = null;
           return;
         }
-        cycleQuote();
+        cycle();
       }, 5000);
     }
 
     function stopOverlay() {
       const overlay = document.getElementById("jobmatch-overlay");
-      if (!overlay) return;
       overlay.style.display = "none";
       if (quoteTimer) {
         clearInterval(quoteTimer);
         quoteTimer = null;
       }
     }
-
 
     /* ============================================================
           SPINNER UTILS
@@ -311,7 +306,6 @@
       const spin = host.querySelector(".spinner-badge");
       if (spin) spin.remove();
     }
-
 
     /* ============================================================
           APPLY BADGE
@@ -334,12 +328,18 @@
       }
 
       badge.classList.remove(
-        "badge-high", "badge-medium", "badge-low",
-        "badge-top", "badge-applied"
+        "badge-high",
+        "badge-medium",
+        "badge-low",
+        "badge-top",
+        "badge-applied"
       );
       liHost.classList.remove(
-        "card-high", "card-medium", "card-low",
-        "card-top", "card-applied"
+        "card-high",
+        "card-medium",
+        "card-low",
+        "card-top",
+        "card-applied"
       );
 
       if (entry.applied) {
@@ -361,9 +361,8 @@
       }
     }
 
-
     /* ============================================================
-         QUEUE + MARKER + STATE MACHINE
+         QUEUE + STATE MACHINE
      ============================================================ */
     window.jobMatchCache = window.jobMatchCache || {};
     window.jobMatchRetries = window.jobMatchRetries || {};
@@ -399,13 +398,9 @@
     };
 
     const markNewJobsArrived = card => {
-      if (!window.jobMatchMarkerCard) {
-        window.jobMatchMarkerCard = card;
-        console.log("📌 Marker set at:", card.getAttribute("data-job-id"));
-      }
+      if (!window.jobMatchMarkerCard) window.jobMatchMarkerCard = card;
       if (fabState === "done") setFabToIdle();
     };
-
 
     /* ============================================================
          PROCESS CARD
@@ -414,18 +409,21 @@
       const jobId = card.getAttribute("data-job-id");
       if (!jobId) return;
 
-      if (!window.jobMatchRetries[jobId]) window.jobMatchRetries[jobId] = 0;
+      if (!window.jobMatchRetries[jobId])
+        window.jobMatchRetries[jobId] = 0;
 
       if (
         window.jobMatchCache[jobId] ||
         card.dataset[processedFlag] === "1" ||
         window.jobMatchRetries[jobId] >= MAX_RETRIES
-      ) return;
+      )
+        return;
 
       card.dataset[processedFlag] = "1";
 
-      const cardText = card.innerText || "";
-      let isTop = /you(?:'|’|`|â€™)?d be a top applicant/i.test(cardText);
+      let isTop = /you(?:'|’|`|â€™)?d be a top applicant/i.test(
+        card.innerText
+      );
 
       card.scrollIntoView({ behavior: "smooth", block: "center" });
       card.click();
@@ -437,16 +435,22 @@
       if (getTopApplicantFromDetail()) isTop = true;
 
       let level = getPremiumMatchLevelFromDetail();
-
       const rhsText =
-        document.querySelector("div.jobs-details__main-content")?.innerText || "";
+        document.querySelector("div.jobs-details__main-content")
+          ?.innerText || "";
 
-      if (/job match summary not available/i.test(cardText + rhsText)) {
+      if (
+        /job match summary not available/i.test(
+          card.innerText + rhsText
+        )
+      ) {
         isTop = false;
         level = "low";
       }
 
-      const isApplied = /take the next step in your job search/i.test(rhsText);
+      const isApplied = /take the next step in your job search/i.test(
+        rhsText
+      );
 
       if (level === "unknown") {
         window.jobMatchRetries[jobId]++;
@@ -461,15 +465,23 @@
         card.querySelector(".job-card-list__title") ||
         card.querySelector("a.job-card-container__link");
 
-      const role = titleEl ? titleEl.innerText.split("\n")[0].trim() : "Unknown";
+      const role = titleEl
+        ? titleEl.innerText.split("\n")[0].trim()
+        : "Unknown";
 
       const entry = { role, match: level, top: isTop, applied: isApplied };
       window.jobMatchCache[jobId] = entry;
 
-      console.log("Processed:", role, level, isTop ? "(TOP)" : "", isApplied ? "(APPLIED)" : "");
+      console.log(
+        "Processed:",
+        role,
+        level,
+        isTop ? "(TOP)" : "",
+        isApplied ? "(APPLIED)" : ""
+      );
+
       applyBadgeForCard(card, entry);
     }
-
 
     function enqueueCard(card) {
       const jobId = card.getAttribute("data-job-id");
@@ -479,14 +491,13 @@
         window.jobMatchCache[jobId] ||
         card.dataset[processedFlag] === "1" ||
         queue.includes(card)
-      ) return;
+      )
+        return;
 
-      if (!window.jobMatchMarkerCard)
-        markNewJobsArrived(card);
+      if (!window.jobMatchMarkerCard) markNewJobsArrived(card);
 
       queue.push(card);
     }
-
 
     /* ============================================================
          PROCESS QUEUE
@@ -500,14 +511,19 @@
 
       while (queue.length > 0) {
         const card = queue.shift();
-        try { await processCard(card); }
-        catch (e) { console.error(e); }
+        try {
+          await processCard(card);
+        } catch (e) {
+          console.error(e);
+        }
       }
 
       let lastCount = 0;
 
       while (true) {
-        const cardsNow = document.querySelectorAll("div.job-card-container[data-job-id]").length;
+        const cardsNow = document.querySelectorAll(
+          "div.job-card-container[data-job-id]"
+        ).length;
         if (cardsNow === lastCount) break;
         lastCount = cardsNow;
 
@@ -519,7 +535,10 @@
         if (listRoot) {
           listRoot.scrollTop = listRoot.scrollHeight;
         } else {
-          window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+          window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: "smooth"
+          });
         }
 
         await sleep(1500);
@@ -530,8 +549,11 @@
 
         while (queue.length > 0) {
           const c = queue.shift();
-          try { await processCard(c); }
-          catch (e) { console.error(e); }
+          try {
+            await processCard(c);
+          } catch (e) {
+            console.error(e);
+          }
         }
       }
 
@@ -540,8 +562,10 @@
        ============================================================ */
       try {
         if (window.jobMatchMarkerCard) {
-          console.log("🎯 Returning to marker...");
-          window.jobMatchMarkerCard.scrollIntoView({ behavior: "smooth", block: "center" });
+          window.jobMatchMarkerCard.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+          });
           await sleep(400);
         } else {
           smoothScrollToTop(400);
@@ -562,7 +586,10 @@
           document.querySelector("div.job-card-container[data-job-id]");
 
         if (firstCard) {
-          firstCard.scrollIntoView({ behavior: "smooth", block: "center" });
+          firstCard.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+          });
           firstCard.click();
         }
       } catch (e) {
@@ -575,9 +602,8 @@
       processingQueue = false;
     }
 
-
     /* ============================================================
-         INLINE FAB (inside title-heading)
+         INLINE FAB (right side of results line)
      ============================================================ */
     function ensureFab() {
       const old = document.getElementById("job-match-fab-inline");
@@ -588,22 +614,24 @@
       const titleHeading = document.querySelector(
         ".jobs-search-results-list__title-heading"
       );
-      if (!titleHeading) {
-        console.warn("Title heading not found for inline FAB");
-        return;
-      }
+      if (!titleHeading) return;
 
       const resultsBlock = titleHeading.querySelector("small.display-flex");
-      if (!resultsBlock) {
-        console.warn("Results block not found for inline FAB");
-        return;
-      }
+      if (!resultsBlock) return;
 
+      const resultsSpan = resultsBlock.querySelector("span[dir='ltr']");
+
+      // Make results + FAB stay on the same row
+      resultsBlock.style.display = "flex";
+      resultsBlock.style.alignItems = "center";
+      resultsBlock.style.justifyContent = "space-between";
+      resultsBlock.style.width = "100%";
+
+      // Create FAB
       const inlineBtn = document.createElement("button");
       inlineBtn.id = "job-match-fab-inline";
 
       Object.assign(inlineBtn.style, {
-        marginTop: "6px",
         padding: "4px 10px",
         borderRadius: "9999px",
         background: "#16a34a",
@@ -612,20 +640,23 @@
         fontSize: "12px",
         fontWeight: "600",
         cursor: "pointer",
-        width: "max-content",
-        alignSelf: "flex-start"
+        display: "inline-flex",
+        alignItems: "center",
+        height: "22px",
+        lineHeight: "22px",
+        marginLeft: "10px"
       });
 
       inlineBtn.addEventListener("click", () => {
         if (!processingQueue && fabState === "idle") processQueue();
       });
 
-      resultsBlock.insertAdjacentElement("afterend", inlineBtn);
+      resultsBlock.appendChild(inlineBtn);
 
-      // Sync
       fabBtn = inlineBtn;
       setFabToIdle();
 
+      // Sync state with main logic
       const oIdle = setFabToIdle;
       setFabToIdle = function () {
         oIdle();
@@ -634,9 +665,9 @@
         inlineBtn.textContent = "📄 Process jobs";
       };
 
-      const oProcessing = setFabToProcessing;
+      const oProc = setFabToProcessing;
       setFabToProcessing = function () {
-        oProcessing();
+        oProc();
         inlineBtn.disabled = true;
         inlineBtn.style.background = "#f59e0b";
         inlineBtn.textContent = "⏳ Processing…";
@@ -650,7 +681,6 @@
         inlineBtn.textContent = "✅ Processed";
       };
     }
-
 
     /* ============================================================
          INIT SCRIPT
@@ -685,7 +715,11 @@
         });
       });
 
-      observer.observe(listRoot, { childList: true, subtree: true });
+      observer.observe(listRoot, {
+        childList: true,
+        subtree: true
+      });
+
       window.jobMatchObserver = observer;
     }
   }
