@@ -1,7 +1,6 @@
 (() => {
   /* ============================================================
         AUTO-RESTART (FILTER + PAGINATION ONLY)
-        SAFE | DEBOUNCED | NO 429 | NO JOB-ID TRIGGERS
      ============================================================ */
   function cleanUrl(url) {
     const u = new URL(url);
@@ -17,7 +16,7 @@
     if (restartCooldown || restartLock) return;
     restartLock = true;
 
-    console.log("🔄 URL changed (filters/pagination) → restarting job match script...");
+    console.log("🔄 URL changed → restarting job match script...");
     setTimeout(() => (restartLock = false), 400);
 
     restartCooldown = true;
@@ -33,14 +32,16 @@
     }
   }, 300);
 
+
   /* ============================================================
-        MAIN SCRIPT WRAPPER
+        MAIN WRAPPER
      ============================================================ */
   function startScript() {
     console.log("⚡ Job Match Script INIT");
 
     window.jobMatchCache = {};
     window.jobMatchRetries = {};
+    window.jobMatchMarkerCard = null;
 
     document.querySelectorAll(".job-match-badge").forEach(x => x.remove());
 
@@ -62,8 +63,9 @@
     initScriptCore();
   }
 
+
   /* ============================================================
-        CORE LOGIC
+        CORE
      ============================================================ */
   function initScriptCore() {
     const DELAY_MS = 1200;
@@ -73,22 +75,34 @@
     const sleep = ms => new Promise(res => setTimeout(res, ms));
 
     /* ============================================================
-         SMOOTH SCROLL TO TOP (400ms)
+          SMOOTH SCROLL (ease-out-quint)
      ============================================================ */
-    function smoothScrollToTop(duration = 400) {
+    function smoothScrollTo(targetY, duration = 400) {
       const start = window.scrollY;
+      const delta = targetY - start;
       const startTime = performance.now();
+
+      function easeOutQuint(t) {
+        return 1 - Math.pow(1 - t, 5);
+      }
 
       function step(now) {
         const t = Math.min(1, (now - startTime) / duration);
-        const eased = 1 - Math.pow(1 - t, 3); // cubic ease-out
-        window.scrollTo(0, start * (1 - eased));
+        const eased = easeOutQuint(t);
+        window.scrollTo(0, start + delta * eased);
         if (t < 1) requestAnimationFrame(step);
       }
 
       requestAnimationFrame(step);
     }
 
+    function smoothScrollToTop(duration = 400) {
+      smoothScrollTo(0, duration);
+    }
+
+    /* ============================================================
+          DETAIL SCRAPERS
+     ============================================================ */
     function getTopApplicantFromDetail() {
       const panel = document.querySelector("div.jobs-details__main-content");
       if (!panel) return false;
@@ -111,7 +125,7 @@
     }
 
     /* ============================================================
-         STYLES (INCLUDES SPINNER)
+          STYLE (includes spinner)
      ============================================================ */
     function ensureStyles() {
       if (document.getElementById("job-match-badge-style")) return;
@@ -148,7 +162,6 @@
           background-color: rgba(37,99,235,0.08) !important;
         }
 
-        /* SPINNER */
         .spinner-badge {
           margin-left: 6px;
           padding: 2px 6px;
@@ -173,8 +186,9 @@
       document.head.appendChild(style);
     }
 
+
     /* ============================================================
-         SPINNER HELPERS
+          SPINNER UTILS
      ============================================================ */
     function showSpinner(card) {
       const subtitle = card.querySelector(".artdeco-entity-lockup__subtitle");
@@ -189,13 +203,13 @@
     function removeSpinner(card) {
       const subtitle = card.querySelector(".artdeco-entity-lockup__subtitle");
       const host = subtitle || card;
-
       const spin = host.querySelector(".spinner-badge");
       if (spin) spin.remove();
     }
 
+
     /* ============================================================
-         BADGE APPLY
+          APPLY BADGE
      ============================================================ */
     function applyBadgeForCard(card, entry) {
       ensureStyles();
@@ -242,11 +256,13 @@
       }
     }
 
+
     /* ============================================================
-         QUEUE + FAB
+          QUEUE + MARKER + FAB
      ============================================================ */
     window.jobMatchCache = window.jobMatchCache || {};
     window.jobMatchRetries = window.jobMatchRetries || {};
+    window.jobMatchMarkerCard = null;
 
     const queue = [];
     let processingQueue = false;
@@ -272,15 +288,20 @@
       fabState = "done";
       fabBtn.disabled = true;
       fabBtn.style.background = "#d4af37";
-      fabBtn.innerHTML = `✅ Processed jobs`;
+      fabBtn.innerHTML = `✅ Processed`;
     };
 
-    const markNewJobsArrived = () => {
+    const markNewJobsArrived = card => {
+      if (!window.jobMatchMarkerCard) {
+        window.jobMatchMarkerCard = card;
+        console.log("📌 Marker set at:", card.getAttribute("data-job-id"));
+      }
       if (fabState === "done") setFabToIdle();
     };
 
+
     /* ============================================================
-         PROCESS SINGLE CARD
+          PROCESS SINGLE CARD
      ============================================================ */
     async function processCard(card) {
       const jobId = card.getAttribute("data-job-id");
@@ -342,6 +363,7 @@
       applyBadgeForCard(card, entry);
     }
 
+
     function enqueueCard(card) {
       const jobId = card.getAttribute("data-job-id");
       if (!jobId) return;
@@ -352,12 +374,15 @@
         queue.includes(card)
       ) return;
 
+      if (!window.jobMatchMarkerCard)
+        markNewJobsArrived(card);
+
       queue.push(card);
-      markNewJobsArrived();
     }
 
+
     /* ============================================================
-         PROCESS QUEUE + LAZY-LOAD SUPPORT
+         PROCESS QUEUE + LAZY LOAD SUPPORT
      ============================================================ */
     async function processQueue() {
       if (processingQueue) return;
@@ -368,7 +393,7 @@
       while (queue.length > 0) {
         const card = queue.shift();
         try { await processCard(card); }
-        catch (e) { console.error("Error processing card:", e); }
+        catch (e) { console.error(e); }
       }
 
       let lastCount = 0;
@@ -403,11 +428,17 @@
       }
 
       /* ============================================================
-           SMOOTH RETURN TO TOP (400ms)
+           SCROLL BACK TO MARKER (if exists) OR TOP
        ============================================================ */
       try {
-        smoothScrollToTop(400);
-        await sleep(400);
+        if (window.jobMatchMarkerCard) {
+          console.log("🎯 Returning to marker...");
+          window.jobMatchMarkerCard.scrollIntoView({ behavior: "smooth", block: "center" });
+          await sleep(400);
+        } else {
+          smoothScrollToTop(400);
+          await sleep(400);
+        }
 
         const listRoot =
           document.querySelector(".jobs-search-results-list") ||
@@ -418,19 +449,25 @@
 
         await sleep(100);
 
-        const firstCard = document.querySelector("div.job-card-container[data-job-id]");
+        const firstCard =
+          window.jobMatchMarkerCard ||
+          document.querySelector("div.job-card-container[data-job-id]");
+
         if (firstCard) {
           firstCard.scrollIntoView({ behavior: "smooth", block: "center" });
           firstCard.click();
         }
       } catch (e) {}
 
+
       setFabToDone();
+      window.jobMatchMarkerCard = null;
       processingQueue = false;
     }
 
+
     /* ============================================================
-         FAB BUTTON
+         FAB
      ============================================================ */
     function ensureFab() {
       if (document.getElementById("job-match-fab")) {
@@ -438,19 +475,6 @@
         setFabToIdle();
         return;
       }
-
-      const listRoot =
-        document.querySelector(".jobs-search-results-list") ||
-        document.querySelector(".jobs-search-results__list") ||
-        document.querySelector(".scaffold-layout__list");
-
-      let anchor =
-        listRoot?.closest(".scaffold-layout__list") ||
-        listRoot?.parentElement ||
-        document.body;
-
-      if (anchor !== document.body && getComputedStyle(anchor).position === "static")
-        anchor.style.position = "relative";
 
       fabBtn = document.createElement("button");
       fabBtn.id = "job-match-fab";
@@ -464,18 +488,10 @@
         color: "#fff",
         border: "none",
         fontSize: "13px",
-        fontWeight: "600"
+        fontWeight: "600",
+        left: "12px",
+        top: "60px"
       });
-
-      function positionButton() {
-        const rect = anchor.getBoundingClientRect();
-        fabBtn.style.top = Math.max(rect.top + 12, 60) + "px";
-        fabBtn.style.left = rect.left + 12 + "px";
-      }
-
-      positionButton();
-      window.addEventListener("resize", positionButton);
-      window.addEventListener("scroll", positionButton);
 
       fabBtn.addEventListener("click", () => {
         if (!processingQueue && fabState === "idle") processQueue();
@@ -486,7 +502,7 @@
     }
 
     /* ============================================================
-         START OBSERVATION
+         OBSERVER
      ============================================================ */
     ensureStyles();
 
