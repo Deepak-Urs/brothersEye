@@ -125,7 +125,7 @@
     }
 
     /* ============================================================
-          STYLE (includes spinner)
+          STYLE (includes spinner + overlay)
      ============================================================ */
     function ensureStyles() {
       if (document.getElementById("job-match-badge-style")) return;
@@ -158,9 +158,7 @@
           color: #2563eb !important;
           border: 1px solid #2563eb !important;
         }
-        .card-applied {
-          background-color: rgba(37,99,235,0.08) !important;
-        }
+        .card-applied { background-color: rgba(37,99,235,0.08) !important; }
 
         .spinner-badge {
           margin-left: 6px;
@@ -178,12 +176,119 @@
           font-size: 12px;
           animation: spin 1s linear infinite;
         }
+
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+
+        /* FULL SCREEN OVERLAY */
+        #jobmatch-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          backdrop-filter: blur(6px);
+          background: rgba(255,255,255,0.525);   /* Reduced translucency by 30% */
+          z-index: 999999;
+          display: none;
+          align-items: center;
+          justify-content: center;
+          flex-direction: column;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        #jobmatch-overlay-spinner {
+          font-size: 42px;
+          margin-bottom: 14px;
+          animation: spin 1.2s linear infinite;
+        }
+
+        #jobmatch-overlay-text {
+          font-size: 15px;
+          font-weight: 600;
+          color: #444;
+          margin-bottom: 6px;
+        }
+
+        #jobmatch-overlay-quote {
+          font-size: 13px;
+          color: #666;
+          text-align: center;
+          max-width: 280px;
+        }
       `;
       document.head.appendChild(style);
+    }
+
+    /* ============================================================
+         OVERLAY DOM + QUOTES
+     ============================================================ */
+    const QUOTES = [
+      "Top matches save you 70% effort.",
+      "High-match roles boost success odds.",
+      "Smart filtering cuts search time 60%.",
+      "Every focused step beats scattered effort.",
+      "You’re only one right match away.",
+      "Better roles show up with clarity.",
+      "Strong match scores drive faster offers.",
+      "Your time matters. Target better.",
+      "Quality applications beat quantity every day.",
+      "This workflow gives you real momentum."
+    ];
+
+    let quoteIndexPool = [];
+    let quoteTimer = null;
+
+    function ensureOverlay() {
+      if (document.getElementById("jobmatch-overlay")) return;
+
+      const box = document.createElement("div");
+      box.id = "jobmatch-overlay";
+      box.innerHTML = `
+        <div id="jobmatch-overlay-spinner">⏳</div>
+        <div id="jobmatch-overlay-text">Loading...</div>
+        <div id="jobmatch-overlay-quote"></div>
+      `;
+      document.body.appendChild(box);
+    }
+
+    function startOverlay() {
+      const overlay = document.getElementById("jobmatch-overlay");
+      if (!overlay) return;
+
+      overlay.style.display = "flex";
+      quoteIndexPool = [...Array(QUOTES.length).keys()];
+
+      function cycleQuote() {
+        if (quoteIndexPool.length === 0) return;
+        const idx = Math.floor(Math.random() * quoteIndexPool.length);
+        const quoteIndex = quoteIndexPool.splice(idx, 1)[0];
+        const qEl = document.getElementById("jobmatch-overlay-quote");
+        if (qEl) qEl.innerText = QUOTES[quoteIndex];
+      }
+
+      cycleQuote();
+      quoteTimer = setInterval(() => {
+        if (quoteIndexPool.length === 0) {
+          clearInterval(quoteTimer);
+          quoteTimer = null;
+          return;
+        }
+        cycleQuote();
+      }, 5000);
+    }
+
+    function stopOverlay() {
+      const overlay = document.getElementById("jobmatch-overlay");
+      if (!overlay) return;
+
+      overlay.style.display = "none";
+      if (quoteTimer) {
+        clearInterval(quoteTimer);
+        quoteTimer = null;
+      }
     }
 
 
@@ -206,6 +311,8 @@
       const spin = host.querySelector(".spinner-badge");
       if (spin) spin.remove();
     }
+
+
 
 
     /* ============================================================
@@ -388,6 +495,7 @@
       if (processingQueue) return;
       processingQueue = true;
 
+      startOverlay();
       setFabToProcessing();
 
       while (queue.length > 0) {
@@ -457,9 +565,11 @@
           firstCard.scrollIntoView({ behavior: "smooth", block: "center" });
           firstCard.click();
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error("Error during final scroll:", e);
+      }
 
-
+      stopOverlay();
       setFabToDone();
       window.jobMatchMarkerCard = null;
       processingQueue = false;
@@ -502,9 +612,10 @@
     }
 
     /* ============================================================
-         OBSERVER
+         OBSERVER + INIT
      ============================================================ */
     ensureStyles();
+    ensureOverlay();
 
     document
       .querySelectorAll("div.job-card-container[data-job-id]")
