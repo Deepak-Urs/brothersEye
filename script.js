@@ -18,11 +18,11 @@
     restartLock = true;
 
     console.log("🔄 URL changed (filters/pagination) → restarting job match script...");
-    setTimeout(() => (restartLock = false), 280);   // 400 → 280
+    setTimeout(() => (restartLock = false), 400);
 
     restartCooldown = true;
     startScript();
-    setTimeout(() => (restartCooldown = false), 1400);  // 2000 → 1400
+    setTimeout(() => (restartCooldown = false), 2000);
   }
 
   setInterval(() => {
@@ -31,10 +31,10 @@
       lastCleanUrl = now;
       safeRestart();
     }
-  }, 210); // 300 → 210
+  }, 300);
 
   /* ============================================================
-        MAIN SCRIPT WRAPPER (RESTARTABLE)
+        MAIN SCRIPT WRAPPER
      ============================================================ */
   function startScript() {
     console.log("⚡ Job Match Script INIT");
@@ -66,11 +66,28 @@
         CORE LOGIC
      ============================================================ */
   function initScriptCore() {
-    const DELAY_MS = 840; // 1200 → 840
+    const DELAY_MS = 1200;
     const processedFlag = "jobMatchDone";
     const MAX_RETRIES = 3;
 
     const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+    /* ============================================================
+         SMOOTH SCROLL TO TOP (400ms)
+     ============================================================ */
+    function smoothScrollToTop(duration = 400) {
+      const start = window.scrollY;
+      const startTime = performance.now();
+
+      function step(now) {
+        const t = Math.min(1, (now - startTime) / duration);
+        const eased = 1 - Math.pow(1 - t, 3); // cubic ease-out
+        window.scrollTo(0, start * (1 - eased));
+        if (t < 1) requestAnimationFrame(step);
+      }
+
+      requestAnimationFrame(step);
+    }
 
     function getTopApplicantFromDetail() {
       const panel = document.querySelector("div.jobs-details__main-content");
@@ -93,6 +110,9 @@
       return "unknown";
     }
 
+    /* ============================================================
+         STYLES (INCLUDES SPINNER)
+     ============================================================ */
     function ensureStyles() {
       if (document.getElementById("job-match-badge-style")) return;
 
@@ -120,20 +140,68 @@
         .card-top    { background-color: rgba(212,160,23,0.10) !important; }
 
         .badge-applied {
-          background-color: white !important;
+          background-color: #ffffff !important;
           color: #2563eb !important;
           border: 1px solid #2563eb !important;
         }
         .card-applied {
           background-color: rgba(37,99,235,0.08) !important;
         }
+
+        /* SPINNER */
+        .spinner-badge {
+          margin-left: 6px;
+          padding: 2px 6px;
+          border-radius: 9999px;
+          font-size: 11px;
+          font-weight: 700;
+          background-color: #f3f4f6 !important;
+          color: #4b5563 !important;
+          display: inline-flex;
+          align-items: center;
+        }
+        .spinner-badge::after {
+          content: "⏳";
+          font-size: 12px;
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
       `;
       document.head.appendChild(style);
     }
 
+    /* ============================================================
+         SPINNER HELPERS
+     ============================================================ */
+    function showSpinner(card) {
+      const subtitle = card.querySelector(".artdeco-entity-lockup__subtitle");
+      const host = subtitle || card;
+      if (host.querySelector(".spinner-badge")) return;
+
+      const spin = document.createElement("span");
+      spin.className = "spinner-badge";
+      host.appendChild(spin);
+    }
+
+    function removeSpinner(card) {
+      const subtitle = card.querySelector(".artdeco-entity-lockup__subtitle");
+      const host = subtitle || card;
+
+      const spin = host.querySelector(".spinner-badge");
+      if (spin) spin.remove();
+    }
+
+    /* ============================================================
+         BADGE APPLY
+     ============================================================ */
     function applyBadgeForCard(card, entry) {
       ensureStyles();
       if (!entry) return;
+
+      removeSpinner(card);
 
       const liHost = card.closest("li.scaffold-layout__list-item") || card;
       const subtitle = card.querySelector(".artdeco-entity-lockup__subtitle");
@@ -174,6 +242,9 @@
       }
     }
 
+    /* ============================================================
+         QUEUE + FAB
+     ============================================================ */
     window.jobMatchCache = window.jobMatchCache || {};
     window.jobMatchRetries = window.jobMatchRetries || {};
 
@@ -208,6 +279,9 @@
       if (fabState === "done") setFabToIdle();
     };
 
+    /* ============================================================
+         PROCESS SINGLE CARD
+     ============================================================ */
     async function processCard(card) {
       const jobId = card.getAttribute("data-job-id");
       if (!jobId) return;
@@ -227,6 +301,8 @@
 
       card.scrollIntoView({ behavior: "smooth", block: "center" });
       card.click();
+
+      showSpinner(card);
 
       await sleep(DELAY_MS);
 
@@ -281,7 +357,7 @@
     }
 
     /* ============================================================
-          PROCESS QUEUE + AUTO-SCROLL FIX
+         PROCESS QUEUE + LAZY-LOAD SUPPORT
      ============================================================ */
     async function processQueue() {
       if (processingQueue) return;
@@ -295,17 +371,11 @@
         catch (e) { console.error("Error processing card:", e); }
       }
 
-      /*
-      ============================================================
-         AUTO-SCROLL LAZY LIST — FIXED TO SCROLL THE REAL LIST
-      ============================================================
-      */
       let lastCount = 0;
 
       while (true) {
         const cardsNow = document.querySelectorAll("div.job-card-container[data-job-id]").length;
         if (cardsNow === lastCount) break;
-
         lastCount = cardsNow;
 
         const listRoot =
@@ -319,7 +389,7 @@
           window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
         }
 
-        await sleep(1050); // 1500 → 1050
+        await sleep(1500);
 
         document
           .querySelectorAll("div.job-card-container[data-job-id]")
@@ -332,12 +402,12 @@
         }
       }
 
-
       /* ============================================================
-            RETURN TO TOP
-      ============================================================ */
+           SMOOTH RETURN TO TOP (400ms)
+       ============================================================ */
       try {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        smoothScrollToTop(400);
+        await sleep(400);
 
         const listRoot =
           document.querySelector(".jobs-search-results-list") ||
@@ -346,7 +416,7 @@
 
         if (listRoot) listRoot.scrollTop = 0;
 
-        await sleep(560); // 800 → 560
+        await sleep(100);
 
         const firstCard = document.querySelector("div.job-card-container[data-job-id]");
         if (firstCard) {
@@ -359,6 +429,9 @@
       processingQueue = false;
     }
 
+    /* ============================================================
+         FAB BUTTON
+     ============================================================ */
     function ensureFab() {
       if (document.getElementById("job-match-fab")) {
         fabBtn = document.getElementById("job-match-fab");
@@ -376,9 +449,8 @@
         listRoot?.parentElement ||
         document.body;
 
-      if (anchor !== document.body && getComputedStyle(anchor).position === "static") {
+      if (anchor !== document.body && getComputedStyle(anchor).position === "static")
         anchor.style.position = "relative";
-      }
 
       fabBtn = document.createElement("button");
       fabBtn.id = "job-match-fab";
@@ -413,6 +485,9 @@
       setFabToIdle();
     }
 
+    /* ============================================================
+         START OBSERVATION
+     ============================================================ */
     ensureStyles();
 
     document
@@ -450,8 +525,3 @@
 
   startScript();
 })();
-
-
-//reduce all wait times by 30% -- DONE
-// Scrolled list, waiting for new jobs…, here the fix might lie, its stoppong
-// if we are preocessing halfway, dont go back to top of page
