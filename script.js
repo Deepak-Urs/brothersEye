@@ -57,8 +57,8 @@
       window.jobMatchObserver = null;
     }
 
-    const oldBtn = document.getElementById("job-match-fab");
-    if (oldBtn) oldBtn.remove();
+    const oldFab = document.getElementById("job-match-fab-inline");
+    if (oldFab) oldFab.remove();
 
     initScriptCore();
   }
@@ -125,7 +125,7 @@
     }
 
     /* ============================================================
-          STYLE (includes spinner + overlay)
+          STYLE (Spinner + Overlay + Badges)
      ============================================================ */
     function ensureStyles() {
       if (document.getElementById("job-match-badge-style")) return;
@@ -158,7 +158,9 @@
           color: #2563eb !important;
           border: 1px solid #2563eb !important;
         }
-        .card-applied { background-color: rgba(37,99,235,0.08) !important; }
+        .card-applied {
+          background-color: rgba(37,99,235,0.08) !important;
+        }
 
         .spinner-badge {
           margin-left: 6px;
@@ -176,13 +178,12 @@
           font-size: 12px;
           animation: spin 1s linear infinite;
         }
-
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
 
-        /* FULL SCREEN OVERLAY */
+        /* OVERLAY */
         #jobmatch-overlay {
           position: fixed;
           top: 0;
@@ -190,7 +191,7 @@
           right: 0;
           bottom: 0;
           backdrop-filter: blur(6px);
-          background: rgba(255,255,255,0.525);   /* Reduced translucency by 30% */
+          background: rgba(255,255,255,0.525);
           z-index: 999999;
           display: none;
           align-items: center;
@@ -223,7 +224,7 @@
     }
 
     /* ============================================================
-         OVERLAY DOM + QUOTES
+         OVERLAY + QUOTES
      ============================================================ */
     const QUOTES = [
       "Top matches save you 70% effort.",
@@ -264,9 +265,9 @@
       function cycleQuote() {
         if (quoteIndexPool.length === 0) return;
         const idx = Math.floor(Math.random() * quoteIndexPool.length);
-        const quoteIndex = quoteIndexPool.splice(idx, 1)[0];
+        const qIndex = quoteIndexPool.splice(idx, 1)[0];
         const qEl = document.getElementById("jobmatch-overlay-quote");
-        if (qEl) qEl.innerText = QUOTES[quoteIndex];
+        if (qEl) qEl.innerText = QUOTES[qIndex];
       }
 
       cycleQuote();
@@ -283,7 +284,6 @@
     function stopOverlay() {
       const overlay = document.getElementById("jobmatch-overlay");
       if (!overlay) return;
-
       overlay.style.display = "none";
       if (quoteTimer) {
         clearInterval(quoteTimer);
@@ -311,8 +311,6 @@
       const spin = host.querySelector(".spinner-badge");
       if (spin) spin.remove();
     }
-
-
 
 
     /* ============================================================
@@ -365,7 +363,7 @@
 
 
     /* ============================================================
-          QUEUE + MARKER + FAB
+         QUEUE + MARKER + STATE MACHINE
      ============================================================ */
     window.jobMatchCache = window.jobMatchCache || {};
     window.jobMatchRetries = window.jobMatchRetries || {};
@@ -381,21 +379,23 @@
       if (!fabBtn) return;
       fabBtn.disabled = false;
       fabBtn.style.background = "#16a34a";
-      fabBtn.innerHTML = `📄 Process jobs`;
+      fabBtn.textContent = "📄 Process jobs";
     };
 
     const setFabToProcessing = () => {
       fabState = "processing";
+      if (!fabBtn) return;
       fabBtn.disabled = true;
       fabBtn.style.background = "#f59e0b";
-      fabBtn.innerHTML = `⏳ Processing jobs…`;
+      fabBtn.textContent = "⏳ Processing…";
     };
 
     const setFabToDone = () => {
       fabState = "done";
+      if (!fabBtn) return;
       fabBtn.disabled = true;
       fabBtn.style.background = "#d4af37";
-      fabBtn.innerHTML = `✅ Processed`;
+      fabBtn.textContent = "✅ Processed";
     };
 
     const markNewJobsArrived = card => {
@@ -408,7 +408,7 @@
 
 
     /* ============================================================
-          PROCESS SINGLE CARD
+         PROCESS CARD
      ============================================================ */
     async function processCard(card) {
       const jobId = card.getAttribute("data-job-id");
@@ -489,7 +489,7 @@
 
 
     /* ============================================================
-         PROCESS QUEUE + LAZY LOAD SUPPORT
+         PROCESS QUEUE
      ============================================================ */
     async function processQueue() {
       if (processingQueue) return;
@@ -529,14 +529,14 @@
           .forEach(enqueueCard);
 
         while (queue.length > 0) {
-          const card = queue.shift();
-          try { await processCard(card); }
+          const c = queue.shift();
+          try { await processCard(c); }
           catch (e) { console.error(e); }
         }
       }
 
       /* ============================================================
-           SCROLL BACK TO MARKER (if exists) OR TOP
+           RETURN TO MARKER OR TOP
        ============================================================ */
       try {
         if (window.jobMatchMarkerCard) {
@@ -548,12 +548,12 @@
           await sleep(400);
         }
 
-        const listRoot =
+        const rootList =
           document.querySelector(".jobs-search-results-list") ||
           document.querySelector(".jobs-search-results__list") ||
           document.querySelector(".scaffold-layout__list");
 
-        if (listRoot) listRoot.scrollTop = 0;
+        if (rootList) rootList.scrollTop = 0;
 
         await sleep(100);
 
@@ -577,45 +577,87 @@
 
 
     /* ============================================================
-         FAB
+         INLINE FAB (inside title-heading)
      ============================================================ */
     function ensureFab() {
-      if (document.getElementById("job-match-fab")) {
-        fabBtn = document.getElementById("job-match-fab");
-        setFabToIdle();
+      const old = document.getElementById("job-match-fab-inline");
+      if (old) old.remove();
+
+      if (document.getElementById("job-match-fab-inline")) return;
+
+      const titleHeading = document.querySelector(
+        ".jobs-search-results-list__title-heading"
+      );
+      if (!titleHeading) {
+        console.warn("Title heading not found for inline FAB");
         return;
       }
 
-      fabBtn = document.createElement("button");
-      fabBtn.id = "job-match-fab";
+      const resultsBlock = titleHeading.querySelector("small.display-flex");
+      if (!resultsBlock) {
+        console.warn("Results block not found for inline FAB");
+        return;
+      }
 
-      Object.assign(fabBtn.style, {
-        position: "fixed",
-        zIndex: "9999",
-        padding: "10px 20px",
+      const inlineBtn = document.createElement("button");
+      inlineBtn.id = "job-match-fab-inline";
+
+      Object.assign(inlineBtn.style, {
+        marginTop: "6px",
+        padding: "4px 10px",
         borderRadius: "9999px",
         background: "#16a34a",
         color: "#fff",
         border: "none",
-        fontSize: "13px",
+        fontSize: "12px",
         fontWeight: "600",
-        left: "12px",
-        top: "60px"
+        cursor: "pointer",
+        width: "max-content",
+        alignSelf: "flex-start"
       });
 
-      fabBtn.addEventListener("click", () => {
+      inlineBtn.addEventListener("click", () => {
         if (!processingQueue && fabState === "idle") processQueue();
       });
 
-      document.body.appendChild(fabBtn);
+      resultsBlock.insertAdjacentElement("afterend", inlineBtn);
+
+      // Sync
+      fabBtn = inlineBtn;
       setFabToIdle();
+
+      const oIdle = setFabToIdle;
+      setFabToIdle = function () {
+        oIdle();
+        inlineBtn.disabled = false;
+        inlineBtn.style.background = "#16a34a";
+        inlineBtn.textContent = "📄 Process jobs";
+      };
+
+      const oProcessing = setFabToProcessing;
+      setFabToProcessing = function () {
+        oProcessing();
+        inlineBtn.disabled = true;
+        inlineBtn.style.background = "#f59e0b";
+        inlineBtn.textContent = "⏳ Processing…";
+      };
+
+      const oDone = setFabToDone;
+      setFabToDone = function () {
+        oDone();
+        inlineBtn.disabled = true;
+        inlineBtn.style.background = "#d4af37";
+        inlineBtn.textContent = "✅ Processed";
+      };
     }
 
+
     /* ============================================================
-         OBSERVER + INIT
+         INIT SCRIPT
      ============================================================ */
     ensureStyles();
     ensureOverlay();
+    ensureFab();
 
     document
       .querySelectorAll("div.job-card-container[data-job-id]")
@@ -628,7 +670,7 @@
 
     if (listRoot) {
       const observer = new MutationObserver(mutations => {
-        for (const m of mutations) {
+        mutations.forEach(m => {
           m.addedNodes.forEach(node => {
             if (node.nodeType !== 1) return;
 
@@ -640,14 +682,12 @@
               .querySelectorAll?.("div.job-card-container[data-job-id]")
               .forEach(enqueueCard);
           });
-        }
+        });
       });
 
       observer.observe(listRoot, { childList: true, subtree: true });
       window.jobMatchObserver = observer;
     }
-
-    ensureFab();
   }
 
   startScript();
